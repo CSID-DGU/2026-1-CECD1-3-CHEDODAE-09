@@ -1,0 +1,58 @@
+@import "../styles/index.css";
+
+:root {
+  --app-max-width: 750px;
+  --app-font: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  background: #ffffff;
+  font-family: var(--app-font);
+}
+
+html {
+  display: flex;
+  justify-content: center;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+}
+
+body > * {
+  width: 100%;
+  min-width: 0;
+}
+
+#infodog-app-shell,
+#infodog-app-shell * {
+  box-sizing: border-box;
+}
+
+#infodog-app-shell {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+#infodog-app-shell > * {
+  max-width: 100%;
+}
+
+.scrollbar-hidden,
+.overflow-y-auto,
+.overflow-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  display: none;
+}

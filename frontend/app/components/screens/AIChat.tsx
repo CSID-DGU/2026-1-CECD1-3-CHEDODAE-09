@@ -251,38 +251,75 @@ export default function AIChat({
     return () => window.clearTimeout(timer);
   }, [savedConversation, messages.length]);
 
-  const sendQuestion = useCallback((question: string, attachmentOverride?: ChatAttachment | null) => {
+  const sendQuestion = useCallback(async (question: string, attachmentOverride?: ChatAttachment | null) => {
     const text = question.trim();
     if (!text || isGenerating) return;
-    const activeAttachmentName = attachmentOverride?.name ?? attachedFileName;
-    const activeAttachmentUrl = attachmentOverride?.url ?? attachedFileUrl;
+
+    let activeAttachmentName = attachedFileName;
+    if (attachmentOverride && attachmentOverride.name) {
+      activeAttachmentName = attachmentOverride.name;
+    }
+
+    let activeAttachmentUrl = attachedFileUrl;
+    if (attachmentOverride && attachmentOverride.url) {
+      activeAttachmentUrl = attachmentOverride.url;
+    }
 
     const now = Date.now();
     const loadingId = now + 1;
-    const completedAnswers =
-      messages.filter((message) => message.role === "assistant" && !message.isGenerating).length -
-      1;
+    
+    let completedAnswers = 0;
+    for (const message of messages) {
+      if (message.role === "assistant" && !message.isGenerating) {
+        completedAnswers += 1;
+      }
+    }
+    completedAnswers -= 1;
+
     const answerIndex = completedAnswers + 1;
     const shouldRecommendDiet = shouldShowDietRecommendation(text, answerIndex);
 
-    setMessages((current) => [
-      ...current,
-      {
+    // 1. 화면에 띄워져 있는 기존 메시지들을 제미나이 양식(history)으로 변환
+    const chatHistory = [];
+    for (const msg of messages) {
+      if (msg.id === 1) {
+        continue; // 첫 인사말은 제외
+      }
+      if (msg.role === "user") {
+        chatHistory.push({
+          role: "user",
+          parts: [{ text: msg.text }]
+        });
+      }
+      if (msg.role === "assistant" && msg.text !== "") {
+        chatHistory.push({
+          role: "model",
+          parts: [{ text: msg.text }]
+        });
+      }
+    }
+
+    // 2. 사용자가 방금 입력한 질문과 로딩 상태를 화면에 먼저 추가
+    setMessages((current) => {
+      const newMessages = [...current];
+      newMessages.push({
         id: now,
         role: "user",
         text,
         time: formatTime(),
         attachmentName: activeAttachmentName,
         attachmentUrl: activeAttachmentUrl,
-      },
-      {
+      });
+      newMessages.push({
         id: loadingId,
         role: "assistant",
         text: "답변을 생성하고 있어요",
         time: formatTime(),
         isGenerating: true,
-      },
-    ]);
+      });
+      return newMessages;
+    });
+
     setInput("");
     const sentAttachmentName = activeAttachmentName;
     const sentAttachmentUrl = activeAttachmentUrl;
@@ -290,33 +327,57 @@ export default function AIChat({
     setAttachedFileUrl("");
     setIsGenerating(true);
 
-    // (+) api 연결 필요: /api/chat 같은 route handler로 질문과 첨부파일 정보를 보내고 실제 답변을 받아오면 됨
-    window.setTimeout(() => {
-      const answer = createAnswer(text, shouldRecommendDiet);
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === loadingId
-            ? {
-                id: now + 2,
-                role: "assistant",
-                text: "",
-                fullText: answer,
-                time: formatTime(),
-                isTyping: true,
-                showDietRecommendation: shouldRecommendDiet,
-              }
-            : message,
-        ),
-      );
-      onExchangeSaved?.(
-        text,
-        answer,
-        shouldRecommendDiet,
-        sentAttachmentName || undefined,
-        sentAttachmentUrl || undefined,
-      );
+    try {
+      // 3. 백엔드로 현재 질문(message)과 과거 대화 기록(history)을 함께 전송
+      const response = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          message: text,
+          history: chatHistory 
+        }),
+      });
+
+      let answer = "서버와 연결하는 중 문제가 발생했습니다.";
+      if (response.ok) {
+        const data = await response.json();
+        answer = data.reply;
+      }
+
+      // 4. 받아온 진짜 답변으로 로딩 메시지를 교체하고 타이핑 효과 시작
+      setMessages((current) => {
+        return current.map((message) => {
+          if (message.id === loadingId) {
+            return {
+              id: now + 2,
+              role: "assistant",
+              text: "",
+              fullText: answer,
+              time: formatTime(),
+              isTyping: true,
+              showDietRecommendation: shouldRecommendDiet,
+            };
+          }
+          return message;
+        });
+      });
+
+      if (onExchangeSaved) {
+        onExchangeSaved(
+          text,
+          answer,
+          shouldRecommendDiet,
+          sentAttachmentName || undefined,
+          sentAttachmentUrl || undefined,
+        );
+      }
+    } catch (error) {
+      console.error("API 통신 에러:", error);
+    } finally {
       setIsGenerating(false);
-    }, 1200);
+    }
   }, [attachedFileName, attachedFileUrl, isGenerating, messages, onExchangeSaved]);
 
   useEffect(() => {

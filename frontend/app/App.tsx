@@ -15,6 +15,7 @@ export type ChatExchange = {
   time: string;
   isPending?: boolean;
   hasDietRecommendation?: boolean;
+  hasRiskAnalysis?: boolean;
   attachmentName?: string;
   attachmentUrl?: string;
   attachmentMimeType?: string;
@@ -246,6 +247,7 @@ export default function App() {
     question: string,
     answer: string,
     hasDietRecommendation = false,
+    hasRiskAnalysis = false,
     attachmentName?: string,
     attachmentUrl?: string,
     attachmentMimeType?: string,

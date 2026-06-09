@@ -23,6 +23,7 @@ type ChatMessage =
       isTyping?: boolean;
       fullText?: string;
       showDietRecommendation?: boolean;
+      showRiskAnalysis?: boolean;
     };
 
 type AIChatProps = {
@@ -37,6 +38,7 @@ type AIChatProps = {
     question: string,
     answer: string,
     hasDietRecommendation?: boolean,
+    hasRiskAnalysis?: boolean,
     attachmentName?: string,
     attachmentUrl?: string,
     attachmentMimeType?: string,
@@ -244,6 +246,7 @@ function exchangeToMessages(exchange: ChatExchange): ChatMessage[] {
       text: exchange.answer,
       time: exchange.time,
       showDietRecommendation: exchange.hasDietRecommendation,
+      showRiskAnalysis: exchange.hasRiskAnalysis,
     },
   ];
 }
@@ -477,8 +480,10 @@ export default function AIChat({
         text: "답변을 생성하고 있어요",
         time: formatTime(),
         isGenerating: true,
-      },
-    ]);
+      });
+      return newMessages;
+    });
+
     setInput("");
     const sentAttachmentName = activeAttachmentName;
     const sentAttachmentUrl = activeAttachmentUrl;
@@ -529,11 +534,10 @@ export default function AIChat({
             ? {
                 id: now + 2,
                 role: "assistant",
-                text: "",
-                fullText: answer,
+                text: answer,
                 time: formatTime(),
-                isTyping: true,
-                showDietRecommendation: shouldRecommendDiet,
+                showDietRecommendation: false,
+                showRiskAnalysis: false,
               }
             : message,
         ),
@@ -630,9 +634,9 @@ export default function AIChat({
                     message.id !== INITIAL_ASSISTANT_MESSAGE_ID &&
                     (message.showDietRecommendation ? (
                       <DietRecommendationCard onOpenSolution={onOpenSolution} />
-                    ) : (
+                    ) : message.showRiskAnalysis ? (
                       <RiskCard />
-                    ))}
+                    ) : null)}
                   <span className="ml-1 block text-sm text-[#A89B8B]">{message.time}</span>
                 </div>
               </div>

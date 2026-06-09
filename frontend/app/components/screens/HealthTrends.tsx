@@ -1,5 +1,5 @@
 import React from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { Calendar, MessageSquare, AlertCircle } from "lucide-react";
 
 export default function HealthTrends() {
@@ -37,7 +37,7 @@ export default function HealthTrends() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         
-        {/* 상단 섹션: 듀얼 축 꺾은선 그래프 */}
+        {/* 듀얼 축 꺾은선 그래프 추가 */}
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
           <div className="mb-4">
             <h3 className="font-bold text-gray-800 text-lg mb-2">최근 6개월 건강 개선 추이</h3>
@@ -47,9 +47,8 @@ export default function HealthTrends() {
             </div>
           </div>
           
-          <div className="h-48 w-full -ml-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart id="health-line-chart-mobile" data={trendData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <div className="-ml-4 h-48 min-h-48 w-full min-w-0 overflow-hidden">
+              <LineChart id="health-line-chart-mobile" width={360} height={192} data={trendData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} dy={5} />
                 <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#52B788' }} axisLine={false} tickLine={false} width={34} />
@@ -62,7 +61,6 @@ export default function HealthTrends() {
                 <Line yAxisId="left" type="monotone" dataKey="goodBacteria" name="유익균" stroke="#52B788" strokeWidth={2} dot={{ r: 3, strokeWidth: 1 }} />
                 <Line yAxisId="right" type="monotone" dataKey="skinRisk" name="위험도" stroke="#F77F00" strokeWidth={2} dot={{ r: 3, strokeWidth: 1 }} />
               </LineChart>
-            </ResponsiveContainer>
           </div>
           
           <div className="mt-3 p-4 bg-gray-50 rounded-xl flex items-start">
@@ -73,7 +71,7 @@ export default function HealthTrends() {
           </div>
         </div>
 
-        {/* 하단 섹션: 리스트형 히스토리 */}
+        {/* 리스트형 히스토리 추가 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-4">
           <div className="p-4 border-b border-gray-50">
             <h3 className="font-bold text-gray-800 text-lg">상담 및 분석 기록</h3>

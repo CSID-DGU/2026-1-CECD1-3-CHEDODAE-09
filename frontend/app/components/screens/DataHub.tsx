@@ -10,6 +10,23 @@ type DataHubProps = {
   recentReports: RecentReport[];
 };
 
+function readFileAsDataUrl(file: File) {
+  // 홈 첨부 이미지 data URL 변환 추가
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("이미지 파일을 읽지 못했습니다."));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("이미지 파일을 읽지 못했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function DataHub({
   onNavigate,
   onAsk,
@@ -22,6 +39,7 @@ export default function DataHub({
   const [showAllReports, setShowAllReports] = useState(false);
   const [attachedFileName, setAttachedFileName] = useState("");
   const [attachedFileUrl, setAttachedFileUrl] = useState("");
+  const [attachedFileMimeType, setAttachedFileMimeType] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,6 +57,7 @@ export default function DataHub({
   ];
 
   const handleAsk = (value = prompt) => {
+    // 홈 질문과 첨부를 채팅으로 전달 추가
     const nextPrompt = value.trim();
     if (!nextPrompt) {
       onNavigate("chat");
@@ -48,7 +67,7 @@ export default function DataHub({
     onAsk(
       nextPrompt,
       attachedFileName && attachedFileUrl
-        ? { name: attachedFileName, url: attachedFileUrl }
+        ? { name: attachedFileName, url: attachedFileUrl, mimeType: attachedFileMimeType }
         : undefined,
     );
   };
@@ -128,7 +147,15 @@ export default function DataHub({
                   const file = event.target.files?.[0];
                   if (file) {
                     setAttachedFileName(file.name);
-                    setAttachedFileUrl(URL.createObjectURL(file));
+                    setAttachedFileMimeType(file.type);
+                    readFileAsDataUrl(file)
+                      .then(setAttachedFileUrl)
+                      .catch((error) => {
+                        console.error("Image read error:", error);
+                        setAttachedFileName("");
+                        setAttachedFileMimeType("");
+                        setAttachedFileUrl("");
+                      });
                   }
                 }}
               />

@@ -13,14 +13,17 @@ export type ChatExchange = {
   question: string;
   answer: string;
   time: string;
+  isPending?: boolean;
   hasDietRecommendation?: boolean;
   attachmentName?: string;
   attachmentUrl?: string;
+  attachmentMimeType?: string;
 };
 
 export type ChatAttachment = {
   name: string;
   url: string;
+  mimeType?: string;
 };
 
 export type RecentReport = {
@@ -34,6 +37,8 @@ export type RecentReport = {
   exchanges?: ChatExchange[];
 };
 
+const CHAT_REPORTS_STORAGE_KEY = "infradog-chat-reports";
+
 const defaultReports: RecentReport[] = [
   {
     id: 1,
@@ -46,7 +51,7 @@ const defaultReports: RecentReport[] = [
   },
   {
     id: 2,
-    title: "바프독 맞춤 생식 매칭 결과",
+    title: "맞춤 식단 매칭 결과",
     summary: "단백질원 및 프리바이오틱스 처방 가이드",
     tag: "식이 추천",
     tagClassName: "text-[#C46D23] bg-[#FFF1DF]",
@@ -55,6 +60,82 @@ const defaultReports: RecentReport[] = [
   },
 ];
 
+function formatReportTime() {
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date());
+}
+
+function makeReportTitle(question: string) {
+  return question.length > 24 ? `${question.slice(0, 24)}...` : question;
+}
+
+function makeChatSummary(count: number, isPending = false) {
+  return isPending
+    ? "답변 생성 중인 채팅 리포트입니다."
+    : `${count}개의 질문/답변이 저장된 채팅 기록입니다.`;
+}
+
+function touchOtherReports(report: RecentReport) {
+  return {
+    ...report,
+    time: report.time === "방금" ? "조금 전" : report.time,
+  };
+}
+
+function makeExchangeId() {
+  return Date.now() + Math.floor(Math.random() * 1000);
+}
+
+function loadSavedReports() {
+  // 채팅 백업 불러오기 추가
+  if (typeof window === "undefined") {
+    return defaultReports;
+  }
+
+  try {
+    const savedReports = window.localStorage.getItem(CHAT_REPORTS_STORAGE_KEY);
+    if (!savedReports) {
+      return defaultReports;
+    }
+
+    const parsedReports = JSON.parse(savedReports);
+    if (!Array.isArray(parsedReports)) {
+      return defaultReports;
+    }
+
+    const validReports = parsedReports
+      .filter((report) => report?.targetTab !== "chat" || report.exchanges?.length)
+      .map((report) => {
+        if (report?.targetTab !== "chat" || !Array.isArray(report.exchanges)) {
+          return report;
+        }
+
+        const seenExchangeIds = new Set<number>();
+        return {
+          ...report,
+          exchanges: report.exchanges.map((exchange: ChatExchange, index: number) => {
+            const exchangeId =
+              typeof exchange.id === "number" && !seenExchangeIds.has(exchange.id)
+                ? exchange.id
+                : report.id + index + 1;
+
+            seenExchangeIds.add(exchangeId);
+            return {
+              ...exchange,
+              id: exchangeId,
+            };
+          }),
+        };
+      });
+    return validReports.length ? validReports : defaultReports;
+  } catch {
+    return defaultReports;
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [chatPrompt, setChatPrompt] = useState("");
@@ -62,6 +143,7 @@ export default function App() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [showAiRecommendation, setShowAiRecommendation] = useState(false);
   const [recentReports, setRecentReports] = useState<RecentReport[]>(defaultReports);
+  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
   const tabs = [
     { id: "home", label: "홈", icon: Home },
@@ -72,19 +154,69 @@ export default function App() {
   ];
 
   useEffect(() => {
-    // (+) 프로토타입에서는 앱이 새로 켜질 때마다 이전 생성 리포트를 초기화
-    // (+) api 연결 필요: GET /api/chat-reports 응답으로 recentReports 세팅
-    window.localStorage.removeItem("infradog-chat-reports");
-    window.sessionStorage.removeItem("infradog-chat-reports");
+    // 채팅 백업 초기 복원 추가
+    const timer = window.setTimeout(() => {
+      setRecentReports(loadSavedReports());
+      setIsStorageLoaded(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    // (+) api 연결 필요: 현재 세션에 임시 저장중, 나중엔 POST/PUT /api/chat-reports/{id}로 exchanges 전체를 저장
-    window.sessionStorage.setItem("infradog-chat-reports", JSON.stringify(recentReports));
-  }, [recentReports]);
+    // 채팅 백업 로컬 저장 추가
+    if (!isStorageLoaded) return;
+    window.localStorage.setItem(CHAT_REPORTS_STORAGE_KEY, JSON.stringify(recentReports));
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        "[INFODOG] saved chat reports",
+        recentReports
+          .filter((report) => report.targetTab === "chat")
+          .map((report) => ({
+            id: report.id,
+            title: report.title,
+            exchanges: report.exchanges?.length ?? 0,
+            completed: report.exchanges?.filter((exchange) => exchange.answer).length ?? 0,
+          })),
+      );
+    }
+  }, [isStorageLoaded, recentReports]);
+
+  const createChatReport = (question: string, attachment?: ChatAttachment) => {
+    // 채팅 질문 즉시 리포트 백업 추가
+    const conversationId = Date.now();
+    const pendingExchange: ChatExchange = {
+      id: conversationId,
+      question,
+      answer: "",
+      time: formatReportTime(),
+      isPending: true,
+      attachmentName: attachment?.name,
+      attachmentUrl: attachment?.url,
+      attachmentMimeType: attachment?.mimeType,
+    };
+
+    setRecentReports((current) => [
+      {
+        id: conversationId,
+        title: makeReportTitle(question),
+        summary: makeChatSummary(0, true),
+        tag: "AI 채팅",
+        tagClassName: "text-[#256C4F] bg-[#E8F5EE]",
+        time: "방금",
+        targetTab: "chat",
+        exchanges: [pendingExchange],
+      },
+      ...current.map(touchOtherReports),
+    ].slice(0, 5));
+
+    setActiveConversationId(conversationId);
+    return conversationId;
+  };
 
   const askInChat = (prompt: string, attachment?: ChatAttachment) => {
-    setActiveConversationId(null);
+    const conversationId = createChatReport(prompt, attachment);
+    setActiveConversationId(conversationId);
     setShowAiRecommendation(false);
     setChatPrompt(prompt);
     setChatAttachment(attachment ?? null);
@@ -93,6 +225,12 @@ export default function App() {
 
   const goToTab = (tab: string) => {
     if (tab === "diet") {
+      setShowAiRecommendation(false);
+    }
+    if (tab === "chat") {
+      setActiveConversationId(null);
+      setChatPrompt("");
+      setChatAttachment(null);
       setShowAiRecommendation(false);
     }
     setActiveTab(tab);
@@ -104,73 +242,76 @@ export default function App() {
   };
 
   const saveChatExchange = (
+    conversationId: number,
     question: string,
     answer: string,
     hasDietRecommendation = false,
     attachmentName?: string,
     attachmentUrl?: string,
+    attachmentMimeType?: string,
   ) => {
-    const now = Date.now();
-    const exchange: ChatExchange = {
-      id: now,
-      question,
-      answer,
-      time: new Intl.DateTimeFormat("ko-KR", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }).format(new Date()),
-      hasDietRecommendation,
-      attachmentName,
-      attachmentUrl,
-    };
-
+    // 채팅 답변 완료 후 백업 갱신 추가
     setRecentReports((current) => {
-      const conversationId = activeConversationId ?? now;
       const existing = current.find((report) => report.id === conversationId);
+      const completedExchange: ChatExchange = {
+        id: makeExchangeId(),
+        question,
+        answer,
+        time: formatReportTime(),
+        hasDietRecommendation,
+        attachmentName,
+        attachmentUrl,
+        attachmentMimeType,
+      };
 
-      if (existing) {
-        return current.map((report) =>
-          report.id === conversationId
-            ? {
-                ...report,
-                title: report.title,
-                summary: `${(report.exchanges?.length ?? 0) + 1}개의 질문/답변이 저장된 채팅 기록입니다.`,
-                time: "방금",
-                exchanges: [...(report.exchanges ?? []), exchange],
-              }
-            : {
-                ...report,
-                time: report.time === "방금" ? "조금 전" : report.time,
-              },
-        );
+      if (!existing) {
+        return [
+          {
+            id: conversationId,
+            title: makeReportTitle(question),
+            summary: makeChatSummary(1),
+            tag: "AI 채팅",
+            tagClassName: "text-[#256C4F] bg-[#E8F5EE]",
+            time: "방금",
+            targetTab: "chat",
+            exchanges: [completedExchange],
+          },
+          ...current.map(touchOtherReports),
+        ].slice(0, 5);
       }
 
-      setActiveConversationId(conversationId);
-      const title = question.length > 24 ? `${question.slice(0, 24)}...` : question;
+      return current.map((report) => {
+        if (report.id !== conversationId) {
+          return touchOtherReports(report);
+        }
 
-      return [
-        {
-          id: conversationId,
-          title,
-          summary: "1개의 질문/답변이 저장된 채팅 기록입니다.",
+        const exchanges = report.exchanges ?? [];
+        const pendingIndex = exchanges.findIndex(
+          (exchange) => exchange.isPending && exchange.question === question,
+        );
+        const nextExchanges =
+          pendingIndex >= 0
+            ? exchanges.map((exchange, index) =>
+                index === pendingIndex ? completedExchange : exchange,
+              )
+            : [...exchanges, completedExchange];
+
+        return {
+          ...report,
+          title: report.title || makeReportTitle(question),
+          summary: makeChatSummary(nextExchanges.filter((exchange) => !exchange.isPending).length),
           tag: "AI 채팅",
           tagClassName: "text-[#256C4F] bg-[#E8F5EE]",
           time: "방금",
           targetTab: "chat",
-          exchanges: [exchange],
-        },
-        ...current.map((report) => ({
-          ...report,
-          time: report.time === "방금" ? "조금 전" : report.time,
-        })),
-      ].slice(0, 5);
+          exchanges: nextExchanges,
+        };
+      });
     });
   };
 
   const openRecentReport = (report: RecentReport) => {
-    if (report.targetTab === "chat" && report.exchanges?.length) {
-      // (+) api 연결 필요: report.id로 대화 상세를 조회해서 exchanges를 채워야 함
+    if (report.targetTab === "chat") {
       setActiveConversationId(report.id);
       setChatPrompt("");
       setChatAttachment(null);
@@ -210,9 +351,11 @@ export default function App() {
       case "chat":
         return (
           <AIChat
+            conversationId={activeConversationId}
             initialPrompt={chatPrompt}
             initialAttachment={chatAttachment}
             savedConversation={activeConversation}
+            onCreateReport={createChatReport}
             onPromptConsumed={() => {
               setChatPrompt("");
               setChatAttachment(null);
@@ -273,7 +416,13 @@ export default function App() {
         </header>
 
         <main className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-[86px]">
-          {renderScreen()}
+          {isStorageLoaded ? (
+            renderScreen()
+          ) : (
+            <div className="flex h-full items-center justify-center text-base font-bold text-[#8A7B6C]">
+              채팅 백업 불러오는 중
+            </div>
+          )}
         </main>
 
         <nav className="absolute bottom-0 left-0 right-0 z-30 flex w-full items-center justify-between border-t border-[#EADFCF] bg-white pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">

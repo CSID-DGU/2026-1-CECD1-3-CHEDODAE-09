@@ -1,5 +1,5 @@
 import React from "react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { AlertTriangle } from "lucide-react";
 
 export default function BioReport() {
@@ -14,7 +14,7 @@ export default function BioReport() {
     { name: "Lacto", max: 8, baseline: 30 },
     { name: "Bacter", max: 45, baseline: 40 },
     { name: "Prevo", max: 32, baseline: 20 },
-    { name: "Fuso", max: 0, baseline: 5 }, // 0 for alert
+    { name: "Fuso", max: 0, baseline: 5 }, // 알림용 0 추가
   ];
 
   const radarData = [
@@ -34,12 +34,11 @@ export default function BioReport() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         
-        {/* 요약 도넛 차트 */}
+        {/* 요약 도넛 차트 추가 */}
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <div className="flex flex-row items-center">
-            <div className="w-1/2 flex justify-center items-center relative h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart id="bio-pie-chart-mobile">
+            <div className="relative flex h-32 min-h-32 w-1/2 min-w-0 items-center justify-center overflow-hidden">
+                <PieChart id="bio-pie-chart-mobile" width={160} height={128}>
                   <Pie
                     data={donutData}
                     cx="50%"
@@ -56,7 +55,6 @@ export default function BioReport() {
                     ))}
                   </Pie>
                 </PieChart>
-              </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-2xl font-black text-[#1B4332]">82</span>
                 <span className="text-sm font-medium text-gray-500">스코어</span>
@@ -75,13 +73,12 @@ export default function BioReport() {
           </div>
         </div>
 
-        {/* 좌측 하단: NGS 마이크로바이옴 분포 */}
+        {/* NGS 마이크로바이옴 분포 추가 */}
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <h4 className="font-bold text-gray-800 text-lg mb-1">장내 미생물 (NGS) 분포</h4>
           <p className="text-sm text-gray-400 mb-4">동일 연령대 평균 대비 맥스의 비율 (%)</p>
-          <div className="h-56 relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart id="bio-bar-chart-mobile" data={microbiomeData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+          <div className="relative h-56 min-h-56 min-w-0 overflow-hidden">
+              <BarChart id="bio-bar-chart-mobile" width={360} height={224} data={microbiomeData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} width={48} />
@@ -90,28 +87,25 @@ export default function BioReport() {
                 <Bar dataKey="max" name="맥스" fill="#1B4332" radius={[0, 4, 4, 0]} barSize={12} />
                 <Bar dataKey="baseline" name="평균" fill="#E5E7EB" radius={[0, 4, 4, 0]} barSize={12} />
               </BarChart>
-            </ResponsiveContainer>
-            {/* 비정형 알림 마커 */}
+            {/* 비정형 알림 마커 추가 */}
             <div className="absolute bottom-10 right-4 bg-[#F77F00] text-white text-xs px-2 py-1 rounded flex items-center animate-pulse">
               <AlertTriangle size={10} className="mr-0.5" /> 0%
             </div>
           </div>
         </div>
 
-        {/* 우측 하단: 질병 예측 레이더 차트 */}
+        {/* 질병 예측 레이더 차트 추가 */}
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
           <h4 className="font-bold text-gray-800 text-lg mb-1">융합 질병 위험도 예측</h4>
           <p className="text-sm text-gray-400 mb-2">데이터 기반 미래 발병 확률</p>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart id="bio-radar-chart-mobile" cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+          <div className="h-56 min-h-56 min-w-0 overflow-hidden">
+              <RadarChart id="bio-radar-chart-mobile" width={360} height={224} cx="50%" cy="50%" outerRadius="65%" data={radarData}>
                 <PolarGrid stroke="#E5E7EB" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#374151', fontSize: 12, fontWeight: 600 }} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                 <Radar name="위험도" dataKey="A" stroke="#F77F00" fill="#F77F00" fillOpacity={0.3} />
                 <Tooltip />
               </RadarChart>
-            </ResponsiveContainer>
           </div>
           <div className="text-center text-sm text-gray-500 mt-1">
             위험도: <strong className="text-[#F77F00]">소화/장 (85%)</strong> · <strong className="text-[#F77F00]">피부/모질 (78%)</strong>

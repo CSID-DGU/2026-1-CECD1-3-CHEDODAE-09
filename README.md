@@ -1,11 +1,12 @@
 # 2026-1-CECD1-3-CHEDODAE-09
 
-2026-1 종합설계1 3분반 체도대 팀 레포지토리입니다.
+2026-1 종합설계1 3분반 체도대 팀 레포지토리
 
 ## 프로젝트 구조
 
 ```text
 .
+├── backend/    # Express + Gemini API 백엔드
 ├── frontend/   # Next.js 프론트엔드 앱
 └── README.md
 ```
@@ -18,7 +19,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 아래 주소를 엽니다.
+브라우저에서 아래 주소 열기
 
 ```text
 http://localhost:3000
@@ -37,6 +38,35 @@ npm run start
 ```bash
 cd frontend
 npm run lint
+```
+
+## API 연동 실행 방법
+
+Gemini API 연동은 `backend/` 폴더에 존재
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+`backend/.env`에 Gemini API 키 설정 필요
+
+```text
+GEMINI_API_KEY=your_api_key_here
+CORS_ORIGIN=http://localhost:3000
+```
+
+프론트엔드 채팅 화면은 기본적으로 아래 API 호출
+
+```text
+http://localhost:5000/api/chat
+```
+
+다른 백엔드 주소 사용 시 `frontend/.env.local`에 아래 값 설정
+
+```text
+NEXT_PUBLIC_AI_CHAT_API_URL=http://localhost:5000/api/chat
 ```
 
 ## 주요 스크립트

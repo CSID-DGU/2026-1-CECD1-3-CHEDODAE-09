@@ -14,6 +14,7 @@ export type ChatExchange = {
   answer: string;
   time: string;
   hasDietRecommendation?: boolean;
+  hasRiskAnalysis?: boolean;
   attachmentName?: string;
   attachmentUrl?: string;
 };
@@ -107,6 +108,7 @@ export default function App() {
     question: string,
     answer: string,
     hasDietRecommendation = false,
+    hasRiskAnalysis = false,
     attachmentName?: string,
     attachmentUrl?: string,
   ) => {
@@ -121,6 +123,7 @@ export default function App() {
         hour12: true,
       }).format(new Date()),
       hasDietRecommendation,
+      hasRiskAnalysis,
       attachmentName,
       attachmentUrl,
     };

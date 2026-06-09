@@ -22,6 +22,7 @@ type ChatMessage =
       isTyping?: boolean;
       fullText?: string;
       showDietRecommendation?: boolean;
+      showRiskAnalysis?: boolean;
     };
 
 type AIChatProps = {
@@ -33,6 +34,7 @@ type AIChatProps = {
     question: string,
     answer: string,
     hasDietRecommendation?: boolean,
+    hasRiskAnalysis?: boolean,
     attachmentName?: string,
     attachmentUrl?: string,
   ) => void;
@@ -60,31 +62,59 @@ function createInitialMessages(): ChatMessage[] {
   ];
 }
 
-function shouldShowDietRecommendation(question: string, answerIndex: number) {
-  // (+) 임시 추천 분기 지점. 챗봇 응답에 추천 여부가 내려오면 함수 제거
-  return (
-    answerIndex === 2 ||
-    question.includes("식단") ||
-    question.includes("바프독") ||
-    question.includes("추천")
-  );
+const PET_HEALTH_KEYWORDS = [
+  "맥스",
+  "강아지",
+  "반려견",
+  "반려동물",
+  "건강검진",
+  "증상",
+  "피부",
+  "알러지",
+  "알레르기",
+  "가려움",
+  "긁",
+  "변",
+  "묽",
+  "설사",
+  "소화",
+  "장내",
+  "유익균",
+  "유산균",
+  "마이크로바이옴",
+  "NGS",
+  "PHR",
+  "사료",
+  "생식",
+  "식단",
+  "바프독",
+  "단백질",
+  "캥거루",
+  "리포트",
+  "검사",
+];
+
+const DIET_RECOMMENDATION_KEYWORDS = [
+  "식단",
+  "바프독",
+  "사료",
+  "생식",
+  "단백질",
+  "캥거루",
+  "추천",
+  "먹",
+  "급여",
+];
+
+function isPetHealthQuestion(question: string) {
+  return PET_HEALTH_KEYWORDS.some((keyword) => question.includes(keyword));
 }
 
-function createAnswer(question: string, shouldRecommendDiet: boolean) {
-  // (+) api 연결 필요: 챗봇 API 응답 생성시 더미 답변 생성 로직 제거
-  if (shouldRecommendDiet) {
-    return "맥스의 알러지 개선 목적이라면 닭고기와 소고기처럼 반응 가능성이 높은 단백질은 잠시 제외하고, 캥거루처럼 단일 단백질 기반 식단을 먼저 테스트하는 것이 좋습니다. 아래 맞춤 식단 추천을 눌러 솔루션에서 AI 추천 상품을 확인해보세요.";
-  }
-
-  if (question.includes("마이크로바이옴") || question.includes("NGS")) {
-    return "최신 마이크로바이옴 검사 결과를 요약하면, 맥스는 장내 유익균 비율이 낮아지고 피부 민감도와 연결될 수 있는 위험 신호가 함께 보입니다. 유산균 보강과 저알러지 단백질 중심 식단 관리가 우선입니다.";
-  }
-
-  if (question.includes("긁") || question.includes("묽") || question.includes("변") || question.includes("배")) {
-    return "배를 자주 긁고 변이 묽은 증상은 피부 알러지 반응과 장내 균형 변화가 같이 나타날 때 자주 보입니다. 최근 NGS 데이터와 연결하면 소화기 민감도와 피부 알러지 가능성을 함께 관리하는 방향이 좋아 보입니다.";
-  }
-
-  return "입력하신 내용을 기준으로 보면, 맥스의 최근 증상은 피부 민감도와 장내 균형 변화가 함께 영향을 줬을 가능성이 있습니다. 먼저 위험도 분석을 보고, 필요하면 다음 질문에서 식단 추천까지 이어서 확인할 수 있어요.";
+function shouldShowDietRecommendation(question: string) {
+  return (
+    isPetHealthQuestion(question) &&
+    DIET_RECOMMENDATION_KEYWORDS.some((keyword) => question.includes(keyword))
+  );
 }
 
 function exchangeToMessages(exchange: ChatExchange): ChatMessage[] {
@@ -103,6 +133,7 @@ function exchangeToMessages(exchange: ChatExchange): ChatMessage[] {
       text: exchange.answer,
       time: exchange.time,
       showDietRecommendation: exchange.hasDietRecommendation,
+      showRiskAnalysis: exchange.hasRiskAnalysis,
     },
   ];
 }
@@ -268,16 +299,9 @@ export default function AIChat({
     const now = Date.now();
     const loadingId = now + 1;
     
-    let completedAnswers = 0;
-    for (const message of messages) {
-      if (message.role === "assistant" && !message.isGenerating) {
-        completedAnswers += 1;
-      }
-    }
-    completedAnswers -= 1;
-
-    const answerIndex = completedAnswers + 1;
-    const shouldRecommendDiet = shouldShowDietRecommendation(text, answerIndex);
+    const isHealthQuestion = isPetHealthQuestion(text);
+    const shouldRecommendDiet = shouldShowDietRecommendation(text);
+    const shouldShowRiskAnalysis = isHealthQuestion && !shouldRecommendDiet;
 
     // 1. 화면에 띄워져 있는 기존 메시지들을 제미나이 양식(history)으로 변환
     const chatHistory = [];
@@ -336,7 +360,9 @@ export default function AIChat({
         },
         body: JSON.stringify({ 
           message: text,
-          history: chatHistory 
+          history: chatHistory,
+          isPetHealthQuestion: isHealthQuestion,
+          shouldRecommendDiet,
         }),
       });
 
@@ -344,6 +370,9 @@ export default function AIChat({
       if (response.ok) {
         const data = await response.json();
         answer = data.reply;
+      } else {
+        const data = await response.json().catch(() => null);
+        answer = data?.error ?? answer;
       }
 
       // 4. 받아온 진짜 답변으로 로딩 메시지를 교체하고 타이핑 효과 시작
@@ -358,6 +387,7 @@ export default function AIChat({
               time: formatTime(),
               isTyping: true,
               showDietRecommendation: shouldRecommendDiet,
+              showRiskAnalysis: shouldShowRiskAnalysis,
             };
           }
           return message;
@@ -369,12 +399,28 @@ export default function AIChat({
           text,
           answer,
           shouldRecommendDiet,
+          shouldShowRiskAnalysis,
           sentAttachmentName || undefined,
           sentAttachmentUrl || undefined,
         );
       }
     } catch (error) {
       console.error("API 통신 에러:", error);
+      const answer = "서버와 연결하는 중 문제가 발생했습니다. 백엔드 서버가 실행 중인지 확인해 주세요.";
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === loadingId
+            ? {
+                id: now + 2,
+                role: "assistant",
+                text: answer,
+                time: formatTime(),
+                showDietRecommendation: false,
+                showRiskAnalysis: false,
+              }
+            : message,
+        ),
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -449,9 +495,9 @@ export default function AIChat({
                     message.id !== INITIAL_ASSISTANT_MESSAGE_ID &&
                     (message.showDietRecommendation ? (
                       <DietRecommendationCard onOpenSolution={onOpenSolution} />
-                    ) : (
+                    ) : message.showRiskAnalysis ? (
                       <RiskCard />
-                    ))}
+                    ) : null)}
                   <span className="ml-1 block text-sm text-[#A89B8B]">{message.time}</span>
                 </div>
               </div>

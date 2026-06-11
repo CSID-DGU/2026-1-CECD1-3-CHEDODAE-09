@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <main
       className="mx-auto h-[100dvh] overflow-hidden bg-white"
-      style={{ width: "750px", maxWidth: "100%" }}
+      style={{ width: "var(--app-max-width)", maxWidth: "100%" }}
     >
       <App />
     </main>

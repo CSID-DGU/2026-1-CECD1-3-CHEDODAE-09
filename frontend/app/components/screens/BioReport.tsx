@@ -77,13 +77,13 @@ export default function BioReport() {
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <h4 className="font-bold text-gray-800 text-lg mb-1">장내 미생물 (NGS) 분포</h4>
           <p className="text-sm text-gray-400 mb-4">동일 연령대 평균 대비 맥스의 비율 (%)</p>
-          <div className="relative h-56 min-h-56 min-w-0 overflow-hidden">
-              <BarChart id="bio-bar-chart-mobile" width={360} height={224} data={microbiomeData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+          <div className="relative h-60 min-h-60 min-w-0 overflow-visible">
+              <BarChart id="bio-bar-chart-mobile" width={360} height={240} data={microbiomeData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} width={48} />
                 <Tooltip cursor={{fill: '#F3F4F6'}} contentStyle={{borderRadius: '8px', border: 'none', fontSize: '12px'}} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', bottom: -10 }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', bottom: 0 }} />
                 <Bar dataKey="max" name="맥스" fill="#1B4332" radius={[0, 4, 4, 0]} barSize={12} />
                 <Bar dataKey="baseline" name="평균" fill="#E5E7EB" radius={[0, 4, 4, 0]} barSize={12} />
               </BarChart>

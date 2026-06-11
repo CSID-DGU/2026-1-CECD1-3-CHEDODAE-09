@@ -81,10 +81,10 @@ export default function DataHub({
           INFODOG AI
         </p>
         <h2 className="text-[30px] font-black leading-tight text-[#2D2A26]">
-          반려동물을 위한 AI 비서, INFODOG
+          반려동물을 위한 수의영양 상담사, INFODOG AI
         </h2>
         <p className="mt-3 text-base leading-7 text-[#6F6254]">
-          맥스의 장내 균, 증상 데이터를 바탕으로 건강 분석을 도와드립니다.
+          맥스의 장내 균, 증상 데이터를 바탕으로 분석을 도와드려요.
         </p>
 
         <div className="mt-5 flex items-center gap-3 rounded-2xl bg-white/90 p-4 shadow-sm">

@@ -1,7 +1,7 @@
 @import "../styles/index.css";
 
 :root {
-  --app-max-width: 750px;
+  --app-max-width: 600px;
   --app-font: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
 }
 
